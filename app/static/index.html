@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="author" content="Pedro Henrique Campos">
+  <title>Thindesk Insight — Dashboard Administrativo</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Crect width=%2232%22 height=%2232%22 rx=%228%22 fill=%22%231c5cab%22/%3E%3Ctext x=%2216%22 y=%2223%22 font-size=%2220%22 font-family=%22Arial%22 font-weight=%22bold%22 fill=%22white%22 text-anchor=%22middle%22%3ET%3C/text%3E%3C/svg%3E">
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+<header class="topo">
+  <div class="marca">
+    <div class="logo" aria-hidden="true">T</div>
+    <div>
+      <h1>Thindesk <span>Insight</span></h1>
+      <p>Painel administrativo de chamados técnicos</p>
+    </div>
+  </div>
+  <div class="acoes-topo">
+    <span id="status-api" class="pill pill-neutro" title="Conexão com a API">● API</span>
+    <span id="ultima-atualizacao" class="texto-suave">—</span>
+    <label class="toggle" title="Atualiza os dados automaticamente a cada 30 segundos">
+      <input type="checkbox" id="auto-refresh" checked> <span>Auto (30s)</span>
+    </label>
+    <button id="btn-atualizar" class="btn btn-sec">↻ Atualizar</button>
+    <button id="btn-novo" class="btn">+ Novo chamado</button>
+  </div>
+</header>
+
+<!-- RF05 — Filtros de consulta -->
+<section class="filtros" aria-label="Filtros de consulta">
+  <div class="campo">
+    <label for="f-preset">Período</label>
+    <select id="f-preset">
+      <option value="7">Últimos 7 dias</option>
+      <option value="30" selected>Últimos 30 dias</option>
+      <option value="90">Últimos 90 dias</option>
+      <option value="180">Últimos 180 dias</option>
+      <option value="custom">Personalizado</option>
+    </select>
+  </div>
+  <div class="campo"><label for="f-inicio">De</label><input type="date" id="f-inicio"></div>
+  <div class="campo"><label for="f-fim">Até</label><input type="date" id="f-fim"></div>
+  <div class="campo"><label for="f-tipo">Tipo</label><select id="f-tipo"><option value="">Todos</option></select></div>
+  <div class="campo"><label for="f-tecnico">Técnico</label><select id="f-tecnico"><option value="">Todos</option></select></div>
+  <div class="campo"><label for="f-setor">Setor</label><select id="f-setor"><option value="">Todos</option></select></div>
+  <div class="campo"><label for="f-prioridade">Prioridade</label><select id="f-prioridade"><option value="">Todas</option></select></div>
+  <div class="campo"><label for="f-status">Status</label><select id="f-status"><option value="">Todos</option></select></div>
+  <button id="btn-limpar" class="btn btn-link">Limpar filtros</button>
+</section>
+
+<div id="alerta-erro" class="alerta-erro" role="alert" hidden>
+  <span id="alerta-texto"></span>
+  <button id="btn-tentar" class="btn btn-sec">Tentar novamente</button>
+</div>
+
+<main class="grade">
+  <!-- RF01 — Indicadores gerais -->
+  <section class="kpis" id="kpis" aria-label="Indicadores gerais"></section>
+
+  <!-- Diferencial: Índice de Saúde da Operação -->
+  <section class="card card-saude">
+    <header><h2>Índice de Saúde da Operação</h2><span class="ajuda" title="40% cumprimento de SLA + 30% satisfação + 30% fila sem atraso">?</span></header>
+    <div id="saude" class="corpo carregando"></div>
+  </section>
+
+  <!-- RF02 — Chamados por período -->
+  <section class="card card-periodo">
+    <header>
+      <h2>Chamados abertos × resolvidos</h2>
+      <div class="segmentado" id="agrupamento" role="group" aria-label="Agrupamento">
+        <button data-v="dia" class="ativo">Dia</button><button data-v="semana">Semana</button><button data-v="mes">Mês</button>
+      </div>
+    </header>
+    <div id="grafico-periodo" class="corpo carregando"></div>
+  </section>
+
+  <!-- RF03 — Situação dos chamados -->
+  <section class="card card-status">
+    <header><h2>Situação dos chamados</h2></header>
+    <div id="situacao" class="corpo carregando"></div>
+  </section>
+
+  <!-- RF04 — Tipos mais atendidos -->
+  <section class="card card-tipos">
+    <header><h2>Tipos de chamado mais atendidos</h2></header>
+    <div id="ranking-tipos" class="corpo carregando"></div>
+  </section>
+
+  <!-- Diferencial: Radar de SLA -->
+  <section class="card card-radar">
+    <header><h2>Radar de SLA <small>fila atual</small></h2></header>
+    <div id="radar" class="corpo carregando"></div>
+  </section>
+
+  <!-- Diferencial: Mapa de calor -->
+  <section class="card card-calor">
+    <header><h2>Mapa de calor da demanda <small>dia × hora de abertura</small></h2></header>
+    <div id="mapa-calor" class="corpo carregando"></div>
+  </section>
+
+  <!-- Desempenho dos técnicos -->
+  <section class="card card-tecnicos">
+    <header><h2>Desempenho da equipe técnica</h2></header>
+    <div id="tecnicos" class="corpo carregando"></div>
+  </section>
+
+  <!-- Lista de chamados -->
+  <section class="card card-lista">
+    <header>
+      <h2>Chamados</h2>
+      <div class="acoes-lista">
+        <input type="search" id="busca" placeholder="Buscar por título ou nº…" aria-label="Buscar chamados">
+        <button id="btn-csv" class="btn btn-sec">⭳ Exportar CSV</button>
+      </div>
+    </header>
+    <div id="lista" class="corpo carregando"></div>
+    <div id="paginacao" class="paginacao"></div>
+  </section>
+</main>
+
+<footer class="rodape">
+  Thindesk Insight v1.0 · Desenvolvido por <strong>Pedro Henrique Campos</strong> · Sistemas de Informação — UMC
+</footer>
+
+<!-- Modal de detalhe do chamado -->
+<dialog id="modal-chamado" class="modal">
+  <div id="modal-conteudo"></div>
+</dialog>
+
+<!-- Modal de novo chamado -->
+<dialog id="modal-novo" class="modal">
+  <form id="form-novo" method="dialog" novalidate>
+    <header class="modal-topo"><h3>Novo chamado</h3><button type="button" class="fechar" data-fechar>×</button></header>
+    <label>Título<input name="titulo" required minlength="3" maxlength="120"></label>
+    <label>Descrição<textarea name="descricao" rows="3" maxlength="2000"></textarea></label>
+    <div class="duas-colunas">
+      <label>Tipo<select name="tipo_id" required></select></label>
+      <label>Setor<select name="setor_id" required></select></label>
+      <label>Prioridade<select name="prioridade"></select></label>
+      <label>Técnico<select name="tecnico_id"><option value="">Não atribuído</option></select></label>
+    </div>
+    <p class="erro-form" id="erro-novo"></p>
+    <footer class="modal-rodape"><button type="button" class="btn btn-sec" data-fechar>Cancelar</button><button class="btn" type="submit">Abrir chamado</button></footer>
+  </form>
+</dialog>
+
+<div id="tooltip" class="tooltip" role="tooltip" hidden></div>
+<div id="toast" class="toast" hidden></div>
+
+<script src="/static/js/api.js"></script>
+<script src="/static/js/graficos.js"></script>
+<script src="/static/js/app.js"></script>
+</body>
+</html>
